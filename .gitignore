@@ -1,3 +1,11 @@
 node_modules/
 .env
 *.log
+.claude/
+.codex/
+.claude.json
+.codex.json
+.bonto/
+.webslop/
+.mcp.json
+AGENTS.md
