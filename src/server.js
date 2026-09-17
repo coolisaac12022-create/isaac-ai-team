@@ -49,7 +49,13 @@ app.use((req, res, next) => {
 
   return res.status(401).json({ error: 'Accès protégé. Mot de passe requis.' });
 });
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+  }
+}));
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'chat.html'));
