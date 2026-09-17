@@ -116,10 +116,12 @@ app.post('/api/chat', async (req, res) => {
 
     return res.json({ agent, reply });
   } catch (error) {
-    console.error('Chat agent error:', error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    console.error('Chat agent error:', errorMessage);
     return res.status(500).json({
-      error: 'Le chat IA est indisponible pour le moment.',
-      details: error.message
+      error: `Erreur Gemini: ${errorMessage}`,
+      details: errorMessage
     });
   }
 });

@@ -1,6 +1,8 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const apiKey = process.env.GOOGLE_API_KEY;
+// Prefer GEMINI_API_KEY for clarity, fallback to GOOGLE_API_KEY
+const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+const modelName = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 function isConfigured() {
@@ -9,10 +11,10 @@ function isConfigured() {
 
 async function generateAssistantReply(prompt, context = '') {
   if (!genAI) {
-    throw new Error('GOOGLE_API_KEY is not configured');
+    throw new Error('GEMINI_API_KEY (or GOOGLE_API_KEY) is not configured');
   }
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: modelName });
   const fullPrompt = context
     ? `Contexte:\n${context}\n\nQuestion:\n${prompt}`
     : prompt;
