@@ -127,9 +127,18 @@
         };
       }
 
+      async function readJsonResponse(response) {
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          const body = await response.text();
+          throw new Error(`Le serveur a renvoyé ${response.status} ${response.statusText} au lieu de JSON pour ${response.url}.`);
+        }
+        return response.json();
+      }
+
       async function ensureAccess() {
         const statusResponse = await fetch('/api/auth/status');
-        const status = await statusResponse.json();
+        const status = await readJsonResponse(statusResponse);
 
         if (!status.passwordProtected) {
           return true;
@@ -162,7 +171,7 @@
           body: JSON.stringify({ password })
         });
 
-        const data = await response.json();
+        const data = await readJsonResponse(response);
         if (!response.ok) {
           alert(data.error || 'Mot de passe incorrect.');
           throw new Error(data.error || 'Bad password');
@@ -175,7 +184,7 @@
 
       async function loadAgents() {
         const response = await fetch('/api/agents', { headers: buildHeaders() });
-        const data = await response.json();
+        const data = await readJsonResponse(response);
 
         agentSelect.innerHTML = data.agents
           .map((agent) => `<option value="${agent.id}">${agent.name}</option>`)
@@ -184,7 +193,7 @@
 
       async function loadHistory(agentId) {
         const response = await fetch(`/api/chat/history?agent=${agentId}`, { headers: buildHeaders() });
-        const data = await response.json();
+        const data = await readJsonResponse(response);
         messages.innerHTML = '';
 
         data.messages.forEach((msg) => {

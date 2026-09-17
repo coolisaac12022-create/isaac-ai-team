@@ -64,9 +64,18 @@
         };
       }
 
+      async function readJsonResponse(response) {
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          await response.text();
+          throw new Error(`Le serveur a renvoyé ${response.status} ${response.statusText} au lieu de JSON pour ${response.url}.`);
+        }
+        return response.json();
+      }
+
       async function ensureAccess() {
         const statusResponse = await fetch('/api/auth/status');
-        const status = await statusResponse.json();
+        const status = await readJsonResponse(statusResponse);
 
         if (!status.passwordProtected) {
           return;
@@ -83,7 +92,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ password })
         });
-        const loginData = await loginResponse.json();
+        const loginData = await readJsonResponse(loginResponse);
 
         if (!loginResponse.ok) {
           localStorage.removeItem(STORAGE_KEY);
@@ -97,7 +106,7 @@
       healthBtn.addEventListener('click', async () => {
         try {
           const response = await fetch('/api/health');
-          const data = await response.json();
+          const data = await readJsonResponse(response);
           healthOutput.textContent = JSON.stringify(data, null, 2);
         } catch (error) {
           healthOutput.textContent = 'Erreur: ' + error.message;
@@ -122,7 +131,7 @@
             body: JSON.stringify({ agent: 'directeur', message: prompt, password })
           });
 
-          const data = await response.json();
+          const data = await readJsonResponse(response);
           chatOutput.textContent = response.ok
             ? data.reply
             : JSON.stringify(data, null, 2);
