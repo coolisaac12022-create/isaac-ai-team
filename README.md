@@ -32,7 +32,21 @@ CREATE TABLE IF NOT EXISTS agent_messages (
 
 CREATE INDEX IF NOT EXISTS idx_agent_messages_agent_created_at
   ON agent_messages (agent, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS agent_memories (
+  id SERIAL PRIMARY KEY,
+  agent VARCHAR(50) NOT NULL,
+  memory TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (agent, memory)
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_memories_agent
+  ON agent_memories (agent, updated_at DESC);
 ```
+
+AprÃ¨s la crÃ©ation de ces tables, l'agent conserve automatiquement les faits durables et utiles issus des conversations. L'extraction est limitÃ©e aux informations explicites et ne permet pas Ã  l'agent de modifier son code ou ses rÃ¨gles.
 
 ## Lancement local
 

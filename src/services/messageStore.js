@@ -41,7 +41,40 @@ async function listMessages(agent) {
   return result.rows;
 }
 
+async function listMemories(agent) {
+  if (!pool || !agent) {
+    return [];
+  }
+
+  const result = await pool.query(`
+    SELECT id, agent, memory, created_at, updated_at
+    FROM agent_memories
+    WHERE agent = $1
+    ORDER BY updated_at DESC
+    LIMIT 30
+  `, [agent]);
+
+  return result.rows;
+}
+
+async function saveMemory(agent, memory) {
+  if (!pool || !agent || !memory) {
+    return null;
+  }
+
+  const result = await pool.query(`
+    INSERT INTO agent_memories (agent, memory)
+    VALUES ($1, $2)
+    ON CONFLICT (agent, memory) DO UPDATE SET updated_at = NOW()
+    RETURNING *
+  `, [agent, memory]);
+
+  return result.rows[0];
+}
+
 module.exports = {
   saveMessage,
-  listMessages
+  listMessages,
+  listMemories,
+  saveMemory
 };

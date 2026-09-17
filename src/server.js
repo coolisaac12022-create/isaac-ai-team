@@ -2,9 +2,9 @@ require('dotenv').config();
 const path = require('path');
 const express = require('express');
 const { checkDatabaseStatus } = require('./config/db');
-const { isConfigured, generateAssistantReply } = require('./services/aiService');
+const { isConfigured, generateAssistantReply, extractMemories } = require('./services/aiService');
 const { listAgents, buildAgentPrompt } = require('./services/agentService');
-const { saveMessage, listMessages } = require('./services/messageStore');
+const { saveMessage, listMessages, listMemories, saveMemory } = require('./services/messageStore');
 const {
   listUsers,
   createUser,
@@ -114,11 +114,19 @@ app.post('/api/chat', async (req, res) => {
 
   try {
     const history = await listMessages(agent);
-    const prompt = buildAgentPrompt(agent, message.trim(), history);
+    const memories = await listMemories(agent);
+    const prompt = buildAgentPrompt(agent, message.trim(), history, memories);
     const reply = await generateAssistantReply(prompt, '');
 
     await saveMessage(agent, 'user', message.trim());
     await saveMessage(agent, 'assistant', reply);
+
+    try {
+      const newMemories = await extractMemories(agent, message.trim(), reply);
+      await Promise.all(newMemories.map((memory) => saveMemory(agent, memory)));
+    } catch (memoryError) {
+      console.error('Agent memory update skipped:', memoryError.message);
+    }
 
     return res.json({ agent, reply });
   } catch (error) {
