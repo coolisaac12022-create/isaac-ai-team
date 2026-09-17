@@ -34,6 +34,47 @@
       const healthOutput = document.getElementById('healthOutput');
       const chatForm = document.getElementById('chatForm');
       const chatOutput = document.getElementById('chatOutput');
+      const STORAGE_KEY = 'isaac-ai-team-password';
+
+      function getPassword() {
+        return localStorage.getItem(STORAGE_KEY) || '';
+      }
+
+      function buildHeaders() {
+        const password = getPassword();
+        return {
+          'Content-Type': 'application/json',
+          ...(password ? { 'X-App-Password': password } : {})
+        };
+      }
+
+      async function ensureAccess() {
+        const statusResponse = await fetch('/api/auth/status');
+        const status = await statusResponse.json();
+
+        if (!status.passwordProtected) {
+          return;
+        }
+
+        let password = getPassword();
+        if (!password) {
+          password = prompt('Mot de passe requis pour accéder au chat :') || '';
+        }
+
+        const loginResponse = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const loginData = await loginResponse.json();
+
+        if (!loginResponse.ok) {
+          localStorage.removeItem(STORAGE_KEY);
+          throw new Error(loginData.error || 'Mot de passe incorrect.');
+        }
+
+        localStorage.setItem(STORAGE_KEY, password);
+      }
 
       healthBtn.addEventListener('click', async () => {
         try {
@@ -55,10 +96,11 @@
         }
 
         try {
-          const response = await fetch('/api/ai/chat', {
+          await ensureAccess();
+          const response = await fetch('/api/chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt })
+            headers: buildHeaders(),
+            body: JSON.stringify({ agent: 'directeur', message: prompt })
           });
 
           const data = await response.json();
