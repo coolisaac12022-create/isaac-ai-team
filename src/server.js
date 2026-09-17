@@ -1,21 +1,222 @@
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
-const pool = require('./config/db');
+const { checkDatabaseStatus } = require('./config/db');
+const { isConfigured, generateAssistantReply } = require('./services/aiService');
+const { listAgents, buildAgentPrompt } = require('./services/agentService');
+const { saveMessage, listMessages } = require('./services/messageStore');
+const {
+  listUsers,
+  createUser,
+  loginUser,
+  listProjects,
+  createProject,
+  listTasksForProject,
+  createTask,
+  findProjectById,
+  findUserById
+} = require('./services/dataStore');
+
 const app = express();
+const PORT = Number(process.env.PORT || 3000);
+const APP_PASSWORD = process.env.APP_PASSWORD || '';
+
+function isPasswordEnabled() {
+  return Boolean(APP_PASSWORD && APP_PASSWORD.trim());
+}
+
+function checkPassword(req) {
+  const headerPassword = req.headers['x-app-password'];
+  const authHeader = req.headers.authorization || '';
+  const bearerPassword = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  const bodyPassword = req.body && typeof req.body.password === 'string' ? req.body.password : '';
+  const requestPassword = headerPassword || bearerPassword || bodyPassword;
+
+  return !isPasswordEnabled() || requestPassword === APP_PASSWORD;
+}
 
 app.use(express.json());
+app.use((req, res, next) => {
+  const publicRoutes = ['/api/health', '/api/auth/login', '/api/auth/status'];
+
+  if (!isPasswordEnabled() || publicRoutes.includes(req.path)) {
+    return next();
+  }
+
+  if (checkPassword(req)) {
+    return next();
+  }
+
+  return res.status(401).json({ error: 'Accès protégé. Mot de passe requis.' });
+});
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'chat.html'));
+});
 
 app.get('/api/health', async (req, res) => {
+  const database = await checkDatabaseStatus();
+  res.json({
+    status: 'ok',
+    service: 'isaac-ai-team',
+    database,
+    ai: {
+      ready: isConfigured(),
+      provider: isConfigured() ? 'Google Gemini' : 'not configured'
+    }
+  });
+});
+
+app.get('/api/auth/status', (req, res) => {
+  res.json({
+    passwordProtected: isPasswordEnabled(),
+    message: isPasswordEnabled() ? 'Protection active.' : 'Protection désactivée.'
+  });
+});
+
+app.post('/api/auth/login', (req, res) => {
+  const password = req.body && typeof req.body.password === 'string' ? req.body.password : '';
+
+  if (!isPasswordEnabled()) {
+    return res.json({ ok: true, message: 'Protection désactivée.' });
+  }
+
+  if (password === APP_PASSWORD) {
+    return res.json({ ok: true, message: 'Connexion autorisée.' });
+  }
+
+  return res.status(401).json({ ok: false, error: 'Mot de passe incorrect.' });
+});
+
+app.get('/api/agents', (req, res) => {
+  res.json({ agents: listAgents() });
+});
+
+app.get('/api/chat/history', async (req, res) => {
+  const { agent } = req.query;
+  const messages = await listMessages(agent || 'directeur');
+  return res.json({ messages });
+});
+
+app.post('/api/chat', async (req, res) => {
+  const { agent, message } = req.body || {};
+
+  if (!agent || !message || typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ error: 'agent et message sont requis.' });
+  }
+
   try {
-    await pool.query('SELECT 1');
-    res.json({ status: 'ok', service: 'isaac-ai-team', database: 'connected' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ status: 'error', database: 'disconnected' });
+    const history = await listMessages(agent);
+    const prompt = buildAgentPrompt(agent, message.trim(), history);
+    const reply = await generateAssistantReply(prompt, '');
+
+    await saveMessage(agent, 'user', message.trim());
+    await saveMessage(agent, 'assistant', reply);
+
+    return res.json({ agent, reply });
+  } catch (error) {
+    console.error('Chat agent error:', error.message);
+    return res.status(500).json({
+      error: 'Le chat IA est indisponible pour le moment.',
+      details: error.message
+    });
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`isaac-ai-team demarre sur le port ${PORT}`);
+app.get('/api/users', (req, res) => {
+  res.json(listUsers());
 });
+
+app.post('/api/users/register', (req, res) => {
+  const { name, email, password, role } = req.body || {};
+
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'name, email et password sont obligatoires.' });
+  }
+
+  try {
+    const user = createUser({ name, email, password, role });
+    return res.status(201).json({ message: 'Utilisateur créé', user });
+  } catch (error) {
+    return res.status(409).json({ error: error.message });
+  }
+});
+
+app.post('/api/users/login', (req, res) => {
+  const { email, password } = req.body || {};
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'email et password sont obligatoires.' });
+  }
+
+  try {
+    const user = loginUser(email, password);
+    return res.json({ message: 'Connexion réussie', user });
+  } catch (error) {
+    return res.status(401).json({ error: error.message });
+  }
+});
+
+app.get('/api/projects', (req, res) => {
+  res.json(listProjects());
+});
+
+app.post('/api/projects', (req, res) => {
+  const { name, description, ownerId } = req.body || {};
+
+  if (!name || !ownerId) {
+    return res.status(400).json({ error: 'name et ownerId sont obligatoires.' });
+  }
+
+  const owner = findUserById(ownerId);
+  if (!owner) {
+    return res.status(404).json({ error: 'Propriétaire introuvable.' });
+  }
+
+  const project = createProject({ name, description, ownerId });
+  return res.status(201).json({ message: 'Projet créé', project });
+});
+
+app.get('/api/projects/:id/tasks', (req, res) => {
+  const project = findProjectById(req.params.id);
+  if (!project) {
+    return res.status(404).json({ error: 'Projet introuvable.' });
+  }
+
+  return res.json(listTasksForProject(req.params.id));
+});
+
+app.post('/api/projects/:id/tasks', (req, res) => {
+  const project = findProjectById(req.params.id);
+  if (!project) {
+    return res.status(404).json({ error: 'Projet introuvable.' });
+  }
+
+  const { title, description, status, assignedTo } = req.body || {};
+  if (!title) {
+    return res.status(400).json({ error: 'title est obligatoire.' });
+  }
+
+  const task = createTask({
+    projectId: req.params.id,
+    title,
+    description,
+    status,
+    assignedTo
+  });
+
+  return res.status(201).json({ message: 'Tâche créée', task });
+});
+
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route introuvable', path: req.originalUrl });
+});
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`isaac-ai-team demarre sur le port ${PORT}`);
+  });
+}
+
+module.exports = { app };

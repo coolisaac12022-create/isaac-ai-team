@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Isaac AI Team Chat</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f5f7fb;
+        color: #111827;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 40px auto;
+        padding: 20px;
+      }
+      .panel {
+        background: white;
+        border-radius: 14px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        padding: 20px;
+      }
+      select, textarea, button {
+        width: 100%;
+        box-sizing: border-box;
+        margin-top: 12px;
+        border-radius: 10px;
+        border: 1px solid #dbe3f0;
+        padding: 12px;
+        font: inherit;
+      }
+      button {
+        background: #2563eb;
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .messages {
+        margin-top: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 420px;
+        overflow-y: auto;
+      }
+      .message {
+        padding: 12px 14px;
+        border-radius: 10px;
+        line-height: 1.5;
+      }
+      .user {
+        background: #dbeafe;
+        align-self: flex-end;
+      }
+      .assistant {
+        background: #ecfdf5;
+        align-self: flex-start;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <div class="panel">
+        <h1>Isaac AI Team</h1>
+
+        <label for="agentSelect">Choisir un agent</label>
+        <select id="agentSelect"></select>
+
+        <form id="chatForm">
+          <textarea id="messageInput" rows="4" placeholder="Écrivez votre message..."></textarea>
+          <button type="submit">Envoyer</button>
+        </form>
+
+        <div class="messages" id="messages"></div>
+      </div>
+    </main>
+
+    <script>
+      const agentSelect = document.getElementById('agentSelect');
+      const chatForm = document.getElementById('chatForm');
+      const messageInput = document.getElementById('messageInput');
+      const messages = document.getElementById('messages');
+      const STORAGE_KEY = 'isaac-ai-team-password';
+
+      function getPasswordFromStorage() {
+        return localStorage.getItem(STORAGE_KEY) || '';
+      }
+
+      function setPasswordInStorage(password) {
+        localStorage.setItem(STORAGE_KEY, password);
+      }
+
+      function buildHeaders(extra = {}) {
+        const password = getPasswordFromStorage();
+        return {
+          'Content-Type': 'application/json',
+          ...(password ? { 'X-App-Password': password } : {}),
+          ...extra
+        };
+      }
+
+      async function ensureAccess() {
+        const statusResponse = await fetch('/api/auth/status');
+        const status = await statusResponse.json();
+
+        if (!status.passwordProtected) {
+          return true;
+        }
+
+        const savedPassword = getPasswordFromStorage();
+        if (savedPassword) {
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: buildHeaders(),
+            body: JSON.stringify({ password: savedPassword })
+          });
+
+          if (response.ok) {
+            return true;
+          }
+        }
+
+        const password = prompt('Mot de passe requis pour accéder au chat :');
+        if (!password) {
+          alert('Accès refusé.');
+          throw new Error('No password');
+        }
+
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          alert(data.error || 'Mot de passe incorrect.');
+          throw new Error(data.error || 'Bad password');
+        }
+
+        setPasswordInStorage(password);
+        return true;
+      }
+
+      async function loadAgents() {
+        const response = await fetch('/api/agents', { headers: buildHeaders() });
+        const data = await response.json();
+
+        agentSelect.innerHTML = data.agents
+          .map((agent) => `<option value="${agent.id}">${agent.name}</option>`)
+          .join('');
+      }
+
+      async function loadHistory(agentId) {
+        const response = await fetch(`/api/chat/history?agent=${agentId}`, { headers: buildHeaders() });
+        const data = await response.json();
+        messages.innerHTML = '';
+
+        data.messages.forEach((msg) => {
+          const div = document.createElement('div');
+          div.className = `message ${msg.role === 'user' ? 'user' : 'assistant'}`;
+          div.textContent = `${msg.role === 'user' ? 'Vous' : 'Assistant'}: ${msg.content}`;
+          messages.appendChild(div);
+        });
+      }
+
+      agentSelect.addEventListener('change', () => {
+        loadHistory(agentSelect.value);
+      });
+
+      chatForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const content = messageInput.value.trim();
+        if (!content) return;
+
+        const agent = agentSelect.value;
+
+        const div = document.createElement('div');
+        div.className = 'message user';
+        div.textContent = 'Vous: ' + content;
+        messages.appendChild(div);
+        messageInput.value = '';
+
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: buildHeaders(),
+          body: JSON.stringify({ agent, message: content })
+        });
+
+        const data = await response.json();
+
+        const answer = document.createElement('div');
+        answer.className = 'message assistant';
+        answer.textContent = 'Assistant: ' + (data.reply || data.error || 'Erreur');
+        messages.appendChild(answer);
+
+        if (response.ok) {
+          loadHistory(agent);
+        }
+      });
+
+      (async function init() {
+        try {
+          await ensureAccess();
+          await loadAgents();
+          await loadHistory(agentSelect.value);
+        } catch (error) {
+          messages.innerHTML = '<div class="message assistant">Accès refusé.</div>';
+        }
+      })();
+    </script>
+  </body>
+</html>

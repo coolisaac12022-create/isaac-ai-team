@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Isaac AI Team</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>Isaac AI Team</h1>
+        <p>Tableau de bord de gestion de projet assisté par IA</p>
+      </header>
+
+      <section class="panel">
+        <h2>État du service</h2>
+        <button id="healthBtn">Vérifier le serveur</button>
+        <pre id="healthOutput">Cliquez pour vérifier.</pre>
+      </section>
+
+      <section class="panel">
+        <h2>Assistant IA</h2>
+        <form id="chatForm">
+          <textarea id="prompt" rows="4" placeholder="Posez une question à l’assistant..."></textarea>
+          <button type="submit">Envoyer</button>
+        </form>
+        <pre id="chatOutput">Réponse de l’IA apparaîtra ici.</pre>
+      </section>
+    </main>
+
+    <script>
+      const healthBtn = document.getElementById('healthBtn');
+      const healthOutput = document.getElementById('healthOutput');
+      const chatForm = document.getElementById('chatForm');
+      const chatOutput = document.getElementById('chatOutput');
+
+      healthBtn.addEventListener('click', async () => {
+        try {
+          const response = await fetch('/api/health');
+          const data = await response.json();
+          healthOutput.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          healthOutput.textContent = 'Erreur: ' + error.message;
+        }
+      });
+
+      chatForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const prompt = document.getElementById('prompt').value.trim();
+
+        if (!prompt) {
+          chatOutput.textContent = 'Veuillez saisir une question.';
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/ai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt })
+          });
+
+          const data = await response.json();
+          chatOutput.textContent = response.ok
+            ? data.reply
+            : JSON.stringify(data, null, 2);
+        } catch (error) {
+          chatOutput.textContent = 'Erreur: ' + error.message;
+        }
+      });
+    </script>
+  </body>
+</html>
