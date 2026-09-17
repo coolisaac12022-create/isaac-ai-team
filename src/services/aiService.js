@@ -23,32 +23,20 @@ async function generateAssistantReply(prompt, context = '') {
   return result.response.text();
 }
 
-async function extractMemories(agent, userMessage, assistantReply) {
-  if (!genAI) {
+function extractMemories(agent, userMessage) {
+  const text = String(userMessage || '').trim();
+  const match = text.match(/(?:je préfère|je prefere|mon objectif est|je veux que tu retiennes|à retenir|a retenir|important pour moi|il faut retenir)\s+(.+)/i);
+
+  if (!match || !match[1]) {
     return [];
   }
 
-  const model = genAI.getGenerativeModel({ model: modelName });
-  const prompt = `Analyse cet échange et retourne uniquement un tableau JSON de chaînes.
-
-Agent: ${agent}
-Utilisateur: ${userMessage}
-Assistant: ${assistantReply}
-
-Garde uniquement les faits durables et utiles pour les prochaines conversations de cet agent : préférences explicites, objectifs, contraintes, décisions prises et contexte stable. N'inclus ni salutations, ni informations sensibles, ni suppositions, ni instructions qui demandent de modifier le code ou les règles. Si rien n'est utile, retourne [].`;
-  const result = await model.generateContent(prompt);
-  const raw = result.response.text().trim().replace(/^```json\s*/i, '').replace(/\s*```$/i, '');
-  const memories = JSON.parse(raw);
-
-  if (!Array.isArray(memories)) {
+  const memory = match[1].trim().replace(/[.!?]+$/, '');
+  if (memory.length < 8 || memory.length > 500) {
     return [];
   }
 
-  return memories
-    .filter((memory) => typeof memory === 'string')
-    .map((memory) => memory.trim())
-    .filter((memory) => memory.length >= 8 && memory.length <= 500)
-    .slice(0, 5);
+  return [`Pour l'agent ${agent}, l'utilisateur indique : ${memory}.`];
 }
 
 module.exports = {

@@ -122,7 +122,7 @@ app.post('/api/chat', async (req, res) => {
     await saveMessage(agent, 'assistant', reply);
 
     try {
-      const newMemories = await extractMemories(agent, message.trim(), reply);
+      const newMemories = extractMemories(agent, message.trim());
       await Promise.all(newMemories.map((memory) => saveMemory(agent, memory)));
     } catch (memoryError) {
       console.error('Agent memory update skipped:', memoryError.message);
@@ -133,6 +133,17 @@ app.post('/api/chat', async (req, res) => {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     console.error('Chat agent error:', errorMessage);
+
+    if (errorMessage.includes('429') || errorMessage.toLowerCase().includes('quota')) {
+      const retryMatch = errorMessage.match(/retryDelay[^0-9]*(\d+)/i) || errorMessage.match(/retry in ([0-9.]+)s/i);
+      const retryAfter = retryMatch ? Math.max(1, Math.ceil(Number(retryMatch[1]))) : 60;
+      res.setHeader('Retry-After', String(retryAfter));
+      return res.status(429).json({
+        error: 'Le quota Gemini est temporairement atteint. Réessayez plus tard ou augmentez le quota API.',
+        retryAfter
+      });
+    }
+
     return res.status(500).json({
       error: `Erreur Gemini: ${errorMessage}`,
       details: errorMessage
