@@ -80,6 +80,9 @@
         <select id="agentSelect"></select>
         <label for="appPassword">Mot de passe</label>
         <input id="appPassword" type="password" placeholder="Entrez le mot de passe ici" autocomplete="current-password" />
+        <label>
+          <input id="voiceEnabled" type="checkbox" checked /> Lire les réponses à voix haute
+        </label>
 
         <form id="chatForm">
           <textarea id="messageInput" rows="4" placeholder="Écrivez votre message..."></textarea>
@@ -96,7 +99,16 @@
       const messageInput = document.getElementById('messageInput');
       const messages = document.getElementById('messages');
       const appPassword = document.getElementById('appPassword');
+      const voiceEnabled = document.getElementById('voiceEnabled');
       const STORAGE_KEY = 'isaac-ai-team-password';
+
+      function speakReply(reply) {
+        if (!voiceEnabled.checked || !('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(reply);
+        utterance.lang = 'fr-FR';
+        window.speechSynthesis.speak(utterance);
+      }
 
       function getPasswordFromStorage() {
         return localStorage.getItem(STORAGE_KEY) || '';
@@ -216,6 +228,7 @@
         answer.className = 'message assistant';
         answer.textContent = 'Assistant: ' + (data.reply || data.error || 'Erreur');
         messages.appendChild(answer);
+        if (response.ok) speakReply(data.reply);
 
         if (response.ok) {
           loadHistory(agent);
