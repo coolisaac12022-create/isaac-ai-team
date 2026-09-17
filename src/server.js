@@ -4,8 +4,9 @@ const express = require('express');
 const { checkDatabaseStatus } = require('./config/db');
 const { isConfigured, generateAssistantReply, extractMemories } = require('./services/aiService');
 const { listAgents, buildAgentPrompt } = require('./services/agentService');
-const { saveMessage, listMessages, listMemories, saveMemory } = require('./services/messageStore');
+const { saveMessage, listMessages, listMemories, saveMemory, listLeads, saveLead } = require('./services/messageStore');
 const { getSiteContext, isMarketingAgent } = require('./services/siteService');
+const { getIntegrationStatus, fetchMetaPageData, fetchGmailMessages, searchInternet } = require('./services/integrationService');
 const {
   listUsers,
   createUser,
@@ -98,6 +99,72 @@ app.post('/api/auth/login', (req, res) => {
 
 app.get('/api/agents', (req, res) => {
   res.json({ agents: listAgents() });
+});
+
+app.get('/api/integrations/status', (req, res) => {
+  res.json(getIntegrationStatus());
+});
+
+app.get('/api/marketing/meta', async (req, res) => {
+  try {
+    return res.json(await fetchMetaPageData());
+  } catch (error) {
+    return res.status(502).json({ error: error.message });
+  }
+});
+
+app.get('/api/marketing/gmail', async (req, res) => {
+  try {
+    return res.json(await fetchGmailMessages(req.query.q || 'newer_than:30d'));
+  } catch (error) {
+    return res.status(502).json({ error: error.message });
+  }
+});
+
+app.get('/api/marketing/research', async (req, res) => {
+  const query = String(req.query.q || '').trim();
+  if (!query) {
+    return res.status(400).json({ error: 'Le paramètre q est obligatoire.' });
+  }
+
+  try {
+    return res.json({ query, results: await searchInternet(query) });
+  } catch (error) {
+    return res.status(502).json({ error: error.message });
+  }
+});
+
+app.get('/api/leads', async (req, res) => {
+  try {
+    return res.json({ leads: await listLeads() });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/leads', async (req, res) => {
+  try {
+    const lead = await saveLead(req.body || {});
+    if (!lead) {
+      return res.status(400).json({ error: 'email ou profileUrl est requis.' });
+    }
+    return res.status(201).json({ lead });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/webhooks/whatsapp', (req, res) => {
+  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+  if (verifyToken && req.query['hub.verify_token'] === verifyToken) {
+    return res.send(req.query['hub.challenge']);
+  }
+  return res.status(403).send('Forbidden');
+});
+
+app.post('/api/webhooks/whatsapp', (req, res) => {
+  console.log('WhatsApp webhook received:', JSON.stringify(req.body));
+  return res.sendStatus(200);
 });
 
 app.get('/api/chat/history', async (req, res) => {

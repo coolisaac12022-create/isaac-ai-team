@@ -72,9 +72,44 @@ async function saveMemory(agent, memory) {
   return result.rows[0];
 }
 
+async function listLeads() {
+  if (!pool) {
+    return [];
+  }
+
+  const result = await pool.query(`
+    SELECT id, name, email, phone, source, profile_url, notes, status, created_at, updated_at
+    FROM leads
+    ORDER BY updated_at DESC
+    LIMIT 200
+  `);
+  return result.rows;
+}
+
+async function saveLead(lead) {
+  if (!pool || !lead || (!lead.email && !lead.profileUrl)) {
+    return null;
+  }
+
+  const result = await pool.query(`
+    INSERT INTO leads (name, email, phone, source, profile_url, notes, status)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    ON CONFLICT (email) DO UPDATE SET
+      name = COALESCE(EXCLUDED.name, leads.name),
+      phone = COALESCE(EXCLUDED.phone, leads.phone),
+      notes = CASE WHEN EXCLUDED.notes <> '' THEN EXCLUDED.notes ELSE leads.notes END,
+      updated_at = NOW()
+    RETURNING *
+  `, [lead.name || null, lead.email || null, lead.phone || null, lead.source || 'unknown', lead.profileUrl || null, lead.notes || '', lead.status || 'new']);
+
+  return result.rows[0];
+}
+
 module.exports = {
   saveMessage,
   listMessages,
   listMemories,
-  saveMemory
+  saveMemory,
+  listLeads,
+  saveLead
 };
