@@ -74,6 +74,7 @@
     <main class="container">
       <div class="panel">
         <h1>Isaac AI Team</h1>
+        <small>Version: 51b9158</small>
 
         <label for="agentSelect">Choisir un agent</label>
         <select id="agentSelect"></select>
@@ -202,7 +203,11 @@
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: buildHeaders(),
-          body: JSON.stringify({ agent, message: content })
+          body: JSON.stringify({
+            agent,
+            message: content,
+            password: appPassword.value.trim() || getPasswordFromStorage()
+          })
         });
 
         const data = await response.json();
