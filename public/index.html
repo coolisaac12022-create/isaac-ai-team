@@ -102,10 +102,11 @@
 
         try {
           await ensureAccess();
+          const password = appPassword.value.trim() || getPassword();
           const response = await fetch('/api/chat', {
             method: 'POST',
             headers: buildHeaders(),
-            body: JSON.stringify({ agent: 'directeur', message: prompt })
+            body: JSON.stringify({ agent: 'directeur', message: prompt, password })
           });
 
           const data = await response.json();
