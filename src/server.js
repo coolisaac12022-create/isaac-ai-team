@@ -5,6 +5,7 @@ const { checkDatabaseStatus } = require('./config/db');
 const { isConfigured, generateAssistantReply, extractMemories } = require('./services/aiService');
 const { listAgents, buildAgentPrompt } = require('./services/agentService');
 const { saveMessage, listMessages, listMemories, saveMemory } = require('./services/messageStore');
+const { getSiteContext, isMarketingAgent } = require('./services/siteService');
 const {
   listUsers,
   createUser,
@@ -115,7 +116,15 @@ app.post('/api/chat', async (req, res) => {
   try {
     const history = await listMessages(agent);
     const memories = await listMemories(agent);
-    const prompt = buildAgentPrompt(agent, message.trim(), history, memories);
+    let externalContext = '';
+    if (isMarketingAgent(agent)) {
+      try {
+        externalContext = await getSiteContext();
+      } catch (siteError) {
+        console.error('Marketing site context skipped:', siteError.message);
+      }
+    }
+    const prompt = buildAgentPrompt(agent, message.trim(), history, memories, externalContext);
     const reply = await generateAssistantReply(prompt, '');
 
     await saveMessage(agent, 'user', message.trim());

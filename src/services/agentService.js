@@ -38,7 +38,7 @@ function getAgentById(agentId) {
   return AGENTS[normalized] || null;
 }
 
-function buildAgentPrompt(agentId, userMessage, history = [], memories = []) {
+function buildAgentPrompt(agentId, userMessage, history = [], memories = [], externalContext = '') {
   const agent = getAgentById(agentId);
 
   if (!agent) {
@@ -54,7 +54,8 @@ function buildAgentPrompt(agentId, userMessage, history = [], memories = []) {
     .map((item) => `- ${item.memory || item}`)
     .join('\n');
   const memoryContext = durableMemories || 'Aucune mémoire durable.';
-  userMessage = `Mémoire durable de l'agent:\n${memoryContext}\n\nQuestion du client:\n${userMessage}`;
+  const context = externalContext ? `\n\nContexte externe vérifié:\n${externalContext}` : '';
+  userMessage = `Mémoire durable de l'agent:\n${memoryContext}${context}\n\nQuestion du client:\n${userMessage}`;
 
   return `Tu es ${agent.name}.\n\nRôle: ${agent.systemPrompt}\n\nHistorique récent:\n${recentHistory || 'Aucun historique.'}\n\nQuestion du client:\n${userMessage}`;
 }
