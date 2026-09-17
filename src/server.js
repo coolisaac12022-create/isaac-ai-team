@@ -39,7 +39,7 @@ app.use(express.json());
 app.use((req, res, next) => {
   const publicRoutes = ['/api/health', '/api/auth/login', '/api/auth/status'];
 
-  if (!isPasswordEnabled() || publicRoutes.includes(req.path)) {
+  if (!isPasswordEnabled() || !req.path.startsWith('/api/') || publicRoutes.includes(req.path)) {
     return next();
   }
 

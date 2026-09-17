@@ -31,6 +31,15 @@
         padding: 12px;
         font: inherit;
       }
+      input[type="password"] {
+        width: 100%;
+        box-sizing: border-box;
+        margin-top: 12px;
+        border-radius: 10px;
+        border: 1px solid #dbe3f0;
+        padding: 12px;
+        font: inherit;
+      }
       button {
         background: #2563eb;
         color: white;
@@ -68,6 +77,8 @@
 
         <label for="agentSelect">Choisir un agent</label>
         <select id="agentSelect"></select>
+        <label for="appPassword">Mot de passe</label>
+        <input id="appPassword" type="password" placeholder="Entrez le mot de passe ici" autocomplete="current-password" />
 
         <form id="chatForm">
           <textarea id="messageInput" rows="4" placeholder="Écrivez votre message..."></textarea>
@@ -83,6 +94,7 @@
       const chatForm = document.getElementById('chatForm');
       const messageInput = document.getElementById('messageInput');
       const messages = document.getElementById('messages');
+      const appPassword = document.getElementById('appPassword');
       const STORAGE_KEY = 'isaac-ai-team-password';
 
       function getPasswordFromStorage() {
@@ -112,6 +124,9 @@
 
         const savedPassword = getPasswordFromStorage();
         if (savedPassword) {
+          appPassword.value = savedPassword;
+        }
+        if (savedPassword) {
           const response = await fetch('/api/auth/login', {
             method: 'POST',
             headers: buildHeaders(),
@@ -123,10 +138,9 @@
           }
         }
 
-        const password = prompt('Mot de passe requis pour accéder au chat :');
+        const password = appPassword.value.trim();
         if (!password) {
-          alert('Accès refusé.');
-          throw new Error('No password');
+          throw new Error('Veuillez saisir le mot de passe dans le champ Mot de passe.');
         }
 
         const response = await fetch('/api/auth/login', {
@@ -142,6 +156,7 @@
         }
 
         setPasswordInStorage(password);
+        appPassword.value = password;
         return true;
       }
 
