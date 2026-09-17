@@ -154,6 +154,21 @@ app.post('/api/leads', async (req, res) => {
   }
 });
 
+app.post('/api/marketing/whatsapp-draft', (req, res) => {
+  const phone = String(req.body?.phone || '').replace(/[^0-9]/g, '');
+  const message = String(req.body?.message || '').trim();
+
+  if (!phone || !message) {
+    return res.status(400).json({ error: 'phone et message sont requis.' });
+  }
+
+  return res.json({
+    mode: 'manual',
+    warning: 'Le message doit être vérifié et envoyé manuellement dans WhatsApp.',
+    url: `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+  });
+});
+
 app.get('/api/webhooks/whatsapp', (req, res) => {
   const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
   if (verifyToken && req.query['hub.verify_token'] === verifyToken) {
