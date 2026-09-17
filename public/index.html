@@ -21,6 +21,8 @@
 
       <section class="panel">
         <h2>Assistant IA</h2>
+        <label for="appPassword">Mot de passe</label>
+        <input id="appPassword" type="password" placeholder="Entrez le mot de passe" autocomplete="current-password" />
         <form id="chatForm">
           <textarea id="prompt" rows="4" placeholder="Posez une question à l’assistant..."></textarea>
           <button type="submit">Envoyer</button>
@@ -34,6 +36,7 @@
       const healthOutput = document.getElementById('healthOutput');
       const chatForm = document.getElementById('chatForm');
       const chatOutput = document.getElementById('chatOutput');
+      const appPassword = document.getElementById('appPassword');
       const STORAGE_KEY = 'isaac-ai-team-password';
 
       function getPassword() {
@@ -56,9 +59,10 @@
           return;
         }
 
-        let password = getPassword();
+        let password = appPassword.value.trim() || getPassword();
+
         if (!password) {
-          password = prompt('Mot de passe requis pour accéder au chat :') || '';
+          throw new Error('Veuillez saisir le mot de passe.');
         }
 
         const loginResponse = await fetch('/api/auth/login', {
@@ -74,6 +78,7 @@
         }
 
         localStorage.setItem(STORAGE_KEY, password);
+        appPassword.value = password;
       }
 
       healthBtn.addEventListener('click', async () => {
