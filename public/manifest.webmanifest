@@ -1,0 +1,10 @@
+{
+  "name": "Isaac AI Team",
+  "short_name": "Isaac AI",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#2563eb",
+  "description": "Chat mobile avec les agents Isaac AI Team.",
+  "icons": []
+}
