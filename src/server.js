@@ -51,6 +51,10 @@ app.use((req, res, next) => {
 
   return res.status(401).json({ error: 'Accès protégé. Mot de passe requis.' });
 });
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'chat.html'));
+});
+
 app.use(express.static(path.join(__dirname, '..', 'public'), {
   setHeaders(res, filePath) {
     if (filePath.endsWith('.html')) {
@@ -58,10 +62,6 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
     }
   }
 }));
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'chat.html'));
-});
 
 app.get('/api/health', async (req, res) => {
   const database = await checkDatabaseStatus();
