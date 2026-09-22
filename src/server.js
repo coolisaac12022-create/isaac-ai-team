@@ -21,7 +21,7 @@ const {
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const APP_PASSWORD = process.env.APP_PASSWORD || '';
+const APP_PASSWORD = String(process.env.APP_PASSWORD || '').trim();
 
 function checkPassword(req) {
   const headerPassword = req.headers['x-app-password'];
@@ -34,6 +34,9 @@ app.use((req, res, next) => {
   const publicRoutes = ['/api/health', '/api/auth/status', '/api/auth/login'];
   if (!req.path.startsWith('/api/') || publicRoutes.includes(req.path)) {
     return next();
+  }
+  if (!APP_PASSWORD) {
+    return res.status(503).json({ error: 'APP_PASSWORD n’est pas configuré sur le serveur.' });
   }
   if (checkPassword(req)) {
     return next();
@@ -66,7 +69,7 @@ app.get('/api/health', async (req, res) => {
 });
 
 app.get('/api/auth/status', (req, res) => {
-  res.json({ passwordProtected: true });
+  res.json({ passwordProtected: true, configured: Boolean(APP_PASSWORD) });
 });
 
 app.post('/api/auth/login', (req, res) => {
