@@ -147,11 +147,15 @@
 
       async function readJsonResponse(response) {
         const contentType = response.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) {
-          const body = await response.text();
-          throw new Error(`Le serveur a renvoyé ${response.status} ${response.statusText} au lieu de JSON pour ${response.url}.`);
+        const body = await response.text();
+        try {
+          return JSON.parse(body);
+        } catch {
+          if (!contentType.includes('application/json')) {
+            throw new Error(`Le serveur a renvoyÃ© ${response.status} ${response.statusText || ''} au lieu de JSON pour ${response.url}.`);
+          }
+          throw new Error(`Réponse JSON invalide reçue de ${response.url}.`);
         }
-        return response.json();
       }
 
       async function ensureAccess() {
