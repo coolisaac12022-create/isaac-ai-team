@@ -3,6 +3,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 // Prefer GEMINI_API_KEY for clarity, fallback to GOOGLE_API_KEY
 const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 const modelName = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS || 20000);
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 function isConfigured() {
@@ -19,7 +20,12 @@ async function generateAssistantReply(prompt, context = '') {
     ? `Contexte:\n${context}\n\nQuestion:\n${prompt}`
     : prompt;
 
-  const result = await model.generateContent(fullPrompt);
+  const result = await Promise.race([
+    model.generateContent(fullPrompt),
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`Le service IA n'a pas répondu dans les ${AI_TIMEOUT_MS / 1000} secondes.`)), AI_TIMEOUT_MS);
+    })
+  ]);
   return result.response.text();
 }
 

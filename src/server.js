@@ -235,6 +235,13 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
+    if (errorMessage.includes('n\'a pas répondu dans les')) {
+      return res.status(504).json({
+        error: 'Le service IA met trop de temps à répondre. Réessayez dans quelques instants.',
+        details: errorMessage
+      });
+    }
+
     return res.status(500).json({
       error: `Erreur Gemini: ${errorMessage}`,
       details: errorMessage
