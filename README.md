@@ -15,6 +15,7 @@ Variables attendues :
 - `DATABASE_URL`
 - `GEMINI_API_KEY`
 - `JWT_SECRET`
+- `APP_PASSWORD`
 
 ## Base de données Neon
 
