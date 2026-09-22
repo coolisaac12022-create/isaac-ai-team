@@ -1,19 +1,24 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Prefer GEMINI_API_KEY for clarity, fallback to GOOGLE_API_KEY
-const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-const modelName = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+// Keep the single-key variables compatible while allowing authorized fallbacks.
+const apiKeys = (process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '')
+  .split(',')
+  .map((key) => key.trim())
+  .filter(Boolean);
+const modelNames = (process.env.GEMINI_MODELS || process.env.GEMINI_MODEL || 'gemini-3.6-flash')
+  .split(',')
+  .map((model) => model.trim())
+  .filter(Boolean);
 const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS || 20000);
 const AI_RETRY_DELAYS_MS = [1200, 3000];
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 function isConfigured() {
-  return Boolean(genAI);
+  return apiKeys.length > 0;
 }
 
 async function generateAssistantReply(prompt, context = '') {
-  if (!genAI) {
-    throw new Error('GEMINI_API_KEY (or GOOGLE_API_KEY) is not configured');
+  if (!isConfigured()) {
+    throw new Error('GEMINI_API_KEY(S) (or GOOGLE_API_KEY) is not configured');
   }
 
   const fullPrompt = context
@@ -21,24 +26,31 @@ async function generateAssistantReply(prompt, context = '') {
     : prompt;
 
   let lastError;
-  for (let attempt = 0; attempt <= AI_RETRY_DELAYS_MS.length; attempt += 1) {
-    try {
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const result = await Promise.race([
-        model.generateContent(fullPrompt),
-        new Promise((_, reject) => {
-          setTimeout(() => reject(new Error(`Le service IA n'a pas répondu dans les ${AI_TIMEOUT_MS / 1000} secondes.`)), AI_TIMEOUT_MS);
-        })
-      ]);
-      return result.response.text();
-    } catch (error) {
-      lastError = error;
-      const errorText = error instanceof Error ? error.message : String(error);
-      const isTemporary = errorText.includes('503') || errorText.toLowerCase().includes('service unavailable');
-      if (!isTemporary || attempt === AI_RETRY_DELAYS_MS.length) {
-        throw error;
+  for (const apiKey of apiKeys) {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    for (const modelName of modelNames) {
+      for (let attempt = 0; attempt <= AI_RETRY_DELAYS_MS.length; attempt += 1) {
+        try {
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const result = await Promise.race([
+            model.generateContent(fullPrompt),
+            new Promise((_, reject) => {
+              setTimeout(() => reject(new Error(`Le service IA n'a pas rÃ©pondu dans les ${AI_TIMEOUT_MS / 1000} secondes.`)), AI_TIMEOUT_MS);
+            })
+          ]);
+          return result.response.text();
+        } catch (error) {
+          lastError = error;
+          const errorText = error instanceof Error ? error.message : String(error);
+          const isTemporary = errorText.includes('429') || errorText.includes('503') || errorText.toLowerCase().includes('quota') || errorText.toLowerCase().includes('service unavailable');
+          if (!isTemporary) {
+            throw error;
+          }
+          if (attempt < AI_RETRY_DELAYS_MS.length) {
+            await new Promise((resolve) => setTimeout(resolve, AI_RETRY_DELAYS_MS[attempt]));
+          }
+        }
       }
-      await new Promise((resolve) => setTimeout(resolve, AI_RETRY_DELAYS_MS[attempt]));
     }
   }
 

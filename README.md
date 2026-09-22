@@ -14,6 +14,8 @@ Variables attendues :
 - `PORT`
 - `DATABASE_URL`
 - `GEMINI_API_KEY`
+- `GEMINI_API_KEYS` (optionnel, clés autorisées séparées par des virgules)
+- `GEMINI_MODELS` (optionnel, modèles de secours séparés par des virgules)
 - `JWT_SECRET`
 - `APP_PASSWORD`
 
