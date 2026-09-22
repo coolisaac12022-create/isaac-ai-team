@@ -24,8 +24,6 @@
 
       <section class="panel">
         <h2>Assistant IA</h2>
-        <label for="appPassword">Mot de passe</label>
-        <input id="appPassword" type="password" placeholder="Entrez le mot de passe" autocomplete="current-password" />
         <label>
           <input id="voiceEnabled" type="checkbox" checked /> Lire les réponses à voix haute
         </label>
@@ -46,9 +44,7 @@
       const healthOutput = document.getElementById('healthOutput');
       const chatForm = document.getElementById('chatForm');
       const chatOutput = document.getElementById('chatOutput');
-      const appPassword = document.getElementById('appPassword');
       const voiceEnabled = document.getElementById('voiceEnabled');
-      const STORAGE_KEY = 'isaac-ai-team-password';
 
       function speakReply(reply) {
         if (!voiceEnabled.checked || !('speechSynthesis' in window)) return;
@@ -68,15 +64,9 @@
           .trim();
       }
 
-      function getPassword() {
-        return localStorage.getItem(STORAGE_KEY) || '';
-      }
-
       function buildHeaders() {
-        const password = getPassword();
         return {
-          'Content-Type': 'application/json',
-          ...(password ? { 'X-App-Password': password } : {})
+          'Content-Type': 'application/json'
         };
       }
 
@@ -91,36 +81,6 @@
           }
           throw new Error(`Réponse JSON invalide reçue de ${response.url}.`);
         }
-      }
-
-      async function ensureAccess() {
-        const statusResponse = await fetch('/api/auth/status');
-        const status = await readJsonResponse(statusResponse);
-
-        if (!status.passwordProtected) {
-          return;
-        }
-
-        let password = appPassword.value.trim() || getPassword();
-
-        if (!password) {
-          throw new Error('Veuillez saisir le mot de passe.');
-        }
-
-        const loginResponse = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password })
-        });
-        const loginData = await readJsonResponse(loginResponse);
-
-        if (!loginResponse.ok) {
-          localStorage.removeItem(STORAGE_KEY);
-          throw new Error(loginData.error || 'Mot de passe incorrect.');
-        }
-
-        localStorage.setItem(STORAGE_KEY, password);
-        appPassword.value = password;
       }
 
       healthBtn.addEventListener('click', async () => {
@@ -143,12 +103,10 @@
         }
 
         try {
-          await ensureAccess();
-          const password = appPassword.value.trim() || getPassword();
           const response = await fetch('/api/chat', {
             method: 'POST',
             headers: buildHeaders(),
-            body: JSON.stringify({ agent: 'directeur', message: prompt, password })
+            body: JSON.stringify({ agent: 'directeur', message: prompt })
           });
 
           const data = await readJsonResponse(response);

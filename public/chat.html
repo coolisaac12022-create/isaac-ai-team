@@ -78,8 +78,6 @@
             <div class="section-label">Canal actif</div>
             <label for="agentSelect">Agent opérationnel</label>
             <select id="agentSelect"></select>
-            <label for="appPassword">Clé d'accès</label>
-            <input id="appPassword" type="password" placeholder="Mot de passe" autocomplete="current-password" />
             <label class="toggle">
               <input id="voiceEnabled" type="checkbox" checked /> Synthèse vocale
             </label>
@@ -116,9 +114,7 @@
       const chatForm = document.getElementById('chatForm');
       const messageInput = document.getElementById('messageInput');
       const messages = document.getElementById('messages');
-      const appPassword = document.getElementById('appPassword');
       const voiceEnabled = document.getElementById('voiceEnabled');
-      const STORAGE_KEY = 'isaac-ai-team-password';
 
       function speakReply(reply) {
         if (!voiceEnabled.checked || !('speechSynthesis' in window)) return;
@@ -139,21 +135,8 @@
           .trim();
       }
 
-      function getPasswordFromStorage() {
-        return localStorage.getItem(STORAGE_KEY) || '';
-      }
-
-      function setPasswordInStorage(password) {
-        localStorage.setItem(STORAGE_KEY, password);
-      }
-
       function buildHeaders(extra = {}) {
-        const password = getPasswordFromStorage();
-        return {
-          'Content-Type': 'application/json',
-          ...(password ? { 'X-App-Password': password } : {}),
-          ...extra
-        };
+        return { 'Content-Type': 'application/json', ...extra };
       }
 
       async function readJsonResponse(response) {
@@ -167,52 +150,6 @@
           }
           throw new Error(`Réponse JSON invalide reçue de ${response.url}.`);
         }
-      }
-
-      async function ensureAccess() {
-        const statusResponse = await fetch('/api/auth/status');
-        const status = await readJsonResponse(statusResponse);
-
-        if (!status.passwordProtected) {
-          return true;
-        }
-
-        const savedPassword = getPasswordFromStorage();
-        if (savedPassword) {
-          appPassword.value = savedPassword;
-        }
-        if (savedPassword) {
-          const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: buildHeaders(),
-            body: JSON.stringify({ password: savedPassword })
-          });
-
-          if (response.ok) {
-            return true;
-          }
-        }
-
-        const password = appPassword.value.trim();
-        if (!password) {
-          throw new Error('Veuillez saisir le mot de passe dans le champ Mot de passe.');
-        }
-
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password })
-        });
-
-        const data = await readJsonResponse(response);
-        if (!response.ok) {
-          alert(data.error || 'Mot de passe incorrect.');
-          throw new Error(data.error || 'Bad password');
-        }
-
-        setPasswordInStorage(password);
-        appPassword.value = password;
-        return true;
       }
 
       async function loadAgents() {
@@ -259,8 +196,7 @@
           headers: buildHeaders(),
           body: JSON.stringify({
             agent,
-            message: content,
-            password: appPassword.value.trim() || getPasswordFromStorage()
+            message: content
           })
         });
 
@@ -279,7 +215,6 @@
 
       (async function init() {
         try {
-          await ensureAccess();
           await loadAgents();
           await loadHistory(agentSelect.value);
         } catch (error) {

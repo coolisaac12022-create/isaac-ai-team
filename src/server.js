@@ -21,36 +21,8 @@ const {
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const APP_PASSWORD = process.env.APP_PASSWORD || '';
-
-function isPasswordEnabled() {
-  return Boolean(APP_PASSWORD && APP_PASSWORD.trim());
-}
-
-function checkPassword(req) {
-  const headerPassword = req.headers['x-app-password'];
-  const authHeader = req.headers.authorization || '';
-  const bearerPassword = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  const bodyPassword = req.body && typeof req.body.password === 'string' ? req.body.password : '';
-  const requestPassword = headerPassword || bearerPassword || bodyPassword;
-
-  return !isPasswordEnabled() || requestPassword === APP_PASSWORD;
-}
 
 app.use(express.json());
-app.use((req, res, next) => {
-  const publicRoutes = ['/api/health', '/api/auth/login', '/api/auth/status'];
-
-  if (!isPasswordEnabled() || !req.path.startsWith('/api/') || publicRoutes.includes(req.path)) {
-    return next();
-  }
-
-  if (checkPassword(req)) {
-    return next();
-  }
-
-  return res.status(401).json({ error: 'Accès protégé. Mot de passe requis.' });
-});
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'chat.html'));
 });
@@ -74,27 +46,6 @@ app.get('/api/health', async (req, res) => {
       provider: isConfigured() ? 'Google Gemini' : 'not configured'
     }
   });
-});
-
-app.get('/api/auth/status', (req, res) => {
-  res.json({
-    passwordProtected: isPasswordEnabled(),
-    message: isPasswordEnabled() ? 'Protection active.' : 'Protection désactivée.'
-  });
-});
-
-app.post('/api/auth/login', (req, res) => {
-  const password = req.body && typeof req.body.password === 'string' ? req.body.password : '';
-
-  if (!isPasswordEnabled()) {
-    return res.json({ ok: true, message: 'Protection désactivée.' });
-  }
-
-  if (password === APP_PASSWORD) {
-    return res.json({ ok: true, message: 'Connexion autorisée.' });
-  }
-
-  return res.status(401).json({ ok: false, error: 'Mot de passe incorrect.' });
 });
 
 app.get('/api/agents', (req, res) => {

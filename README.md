@@ -15,7 +15,6 @@ Variables attendues :
 - `DATABASE_URL`
 - `GEMINI_API_KEY`
 - `JWT_SECRET`
-- `APP_PASSWORD`
 
 ## Base de données Neon
 
@@ -65,5 +64,4 @@ node src/server.js
 ## Sécurité
 
 - Ne jamais committer `.env`
-- Utiliser un mot de passe fort pour `APP_PASSWORD`
 - Garder les clés API dans les variables d’environnement du serveur
