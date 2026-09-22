@@ -118,7 +118,7 @@
       const messages = document.getElementById('messages');
       const appPassword = document.getElementById('appPassword');
       const voiceEnabled = document.getElementById('voiceEnabled');
-      const STORAGE_KEY = 'isaac-ai-team-password';
+      localStorage.removeItem('isaac-ai-team-password');
 
       function speakReply(reply) {
         if (!voiceEnabled.checked || !('speechSynthesis' in window)) return;
@@ -140,13 +140,11 @@
       }
 
       function buildHeaders(extra = {}) {
-        const password = appPassword.value.trim() || localStorage.getItem(STORAGE_KEY) || '';
+        const password = appPassword.value.trim();
         return { 'Content-Type': 'application/json', ...(password ? { 'X-App-Password': password } : {}), ...extra };
       }
 
       async function ensureAccess() {
-        const savedPassword = localStorage.getItem(STORAGE_KEY) || '';
-        if (savedPassword) appPassword.value = savedPassword;
         const password = appPassword.value.trim();
         if (!password) throw new Error('Saisissez la clé d’accès.');
         const response = await fetch('/api/auth/login', {
@@ -156,7 +154,6 @@
         });
         const data = await readJsonResponse(response);
         if (!response.ok) throw new Error(data.error || 'Mot de passe incorrect.');
-        localStorage.setItem(STORAGE_KEY, password);
       }
 
       async function readJsonResponse(response) {
