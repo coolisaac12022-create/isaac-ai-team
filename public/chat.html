@@ -80,6 +80,7 @@
             <select id="agentSelect"></select>
             <label for="appPassword">Clé d'accès</label>
             <input id="appPassword" type="password" placeholder="Mot de passe" autocomplete="current-password" />
+            <button id="loginButton" type="button">Se connecter</button>
             <label class="toggle">
               <input id="voiceEnabled" type="checkbox" checked /> Synthèse vocale
             </label>
@@ -117,6 +118,7 @@
       const messageInput = document.getElementById('messageInput');
       const messages = document.getElementById('messages');
       const appPassword = document.getElementById('appPassword');
+      const loginButton = document.getElementById('loginButton');
       const voiceEnabled = document.getElementById('voiceEnabled');
       localStorage.removeItem('isaac-ai-team-password');
 
@@ -156,6 +158,23 @@
         if (!response.ok) throw new Error(data.error || 'Mot de passe incorrect.');
       }
 
+      async function loginFromButton() {
+        loginButton.disabled = true;
+        loginButton.textContent = 'Vérification...';
+        try {
+          await ensureAccess();
+          await loadAgents();
+          await loadHistory(agentSelect.value);
+          messages.innerHTML = '<div class="message assistant">Connexion réussie. Les agents sont prêts.</div>';
+        } catch (error) {
+          messages.innerHTML = `<div class="message assistant">${cleanAssistantText(error.message)}</div>`;
+          appPassword.focus();
+        } finally {
+          loginButton.disabled = false;
+          loginButton.textContent = 'Se connecter';
+        }
+      }
+
       async function readJsonResponse(response) {
         const contentType = response.headers.get('content-type') || '';
         const body = await response.text();
@@ -193,6 +212,11 @@
 
       agentSelect.addEventListener('change', () => {
         loadHistory(agentSelect.value);
+      });
+
+      loginButton.addEventListener('click', loginFromButton);
+      appPassword.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') loginFromButton();
       });
 
       chatForm.addEventListener('submit', async (event) => {
