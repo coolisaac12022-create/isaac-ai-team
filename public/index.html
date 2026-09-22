@@ -53,9 +53,19 @@
       function speakReply(reply) {
         if (!voiceEnabled.checked || !('speechSynthesis' in window)) return;
         window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(reply);
+        const utterance = new SpeechSynthesisUtterance(cleanAssistantText(reply));
         utterance.lang = 'fr-FR';
         window.speechSynthesis.speak(utterance);
+      }
+
+      function cleanAssistantText(text) {
+        return String(text || '')
+          .replace(/```[\s\S]*?```/g, '')
+          .replace(/[*_~`#]+/g, '')
+          .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+          .replace(/^\s*[-+]\s+/gm, '')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
       }
 
       function getPassword() {
@@ -143,7 +153,7 @@
 
           const data = await readJsonResponse(response);
           chatOutput.textContent = response.ok
-            ? data.reply
+            ? cleanAssistantText(data.reply)
             : JSON.stringify(data, null, 2);
           if (response.ok) speakReply(data.reply);
         } catch (error) {
