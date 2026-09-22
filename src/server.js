@@ -4,7 +4,7 @@ const express = require('express');
 const { checkDatabaseStatus } = require('./config/db');
 const { isConfigured, generateAssistantReply, extractMemories } = require('./services/aiService');
 const { listAgents, buildAgentPrompt } = require('./services/agentService');
-const { saveMessage, listMessages, listMemories, saveMemory, listLeads, saveLead } = require('./services/messageStore');
+const { saveMessage, listMessages, listMemories, saveMemory, listLeads, saveLead, listDecisions, createDecision, reviewDecision } = require('./services/messageStore');
 const { getSiteContext, isMarketingAgent } = require('./services/siteService');
 const { getIntegrationStatus, fetchMetaPageData, fetchGmailMessages, searchInternet } = require('./services/integrationService');
 const {
@@ -149,6 +149,39 @@ app.post('/api/leads', async (req, res) => {
       return res.status(400).json({ error: 'email ou profileUrl est requis.' });
     }
     return res.status(201).json({ lead });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/decisions', async (req, res) => {
+  try {
+    return res.json({ decisions: await listDecisions(req.query.status) });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/decisions', async (req, res) => {
+  try {
+    const decision = await createDecision(req.body || {});
+    if (!decision) {
+      return res.status(400).json({ error: 'agent, title et description sont requis.' });
+    }
+    return res.status(201).json({ decision });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/decisions/:id/review', async (req, res) => {
+  const status = String(req.body?.status || '').toLowerCase();
+  try {
+    const decision = await reviewDecision(req.params.id, status, req.body?.feedback || '');
+    if (!decision) {
+      return res.status(404).json({ error: 'Décision introuvable ou déjà examinée.' });
+    }
+    return res.json({ decision });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

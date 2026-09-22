@@ -105,11 +105,56 @@ async function saveLead(lead) {
   return result.rows[0];
 }
 
+async function listDecisions(status) {
+  if (!pool) {
+    return [];
+  }
+
+  const result = await pool.query(`
+    SELECT id, agent, title, description, action_type, payload, status, feedback, created_at, reviewed_at, completed_at
+    FROM agent_decisions
+    WHERE ($1::text IS NULL OR status = $1)
+    ORDER BY created_at DESC
+    LIMIT 100
+  `, [status || null]);
+  return result.rows;
+}
+
+async function createDecision(decision) {
+  if (!pool || !decision?.agent || !decision.title || !decision.description) {
+    return null;
+  }
+
+  const result = await pool.query(`
+    INSERT INTO agent_decisions (agent, title, description, action_type, payload)
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING *
+  `, [decision.agent, decision.title, decision.description, decision.actionType || 'proposal', decision.payload || {}]);
+  return result.rows[0];
+}
+
+async function reviewDecision(id, status, feedback = '') {
+  if (!pool || !['approved', 'rejected'].includes(status)) {
+    return null;
+  }
+
+  const result = await pool.query(`
+    UPDATE agent_decisions
+    SET status = $2, feedback = $3, reviewed_at = NOW()
+    WHERE id = $1 AND status = 'pending'
+    RETURNING *
+  `, [id, status, feedback]);
+  return result.rows[0] || null;
+}
+
 module.exports = {
   saveMessage,
   listMessages,
   listMemories,
   saveMemory,
   listLeads,
-  saveLead
+  saveLead,
+  listDecisions,
+  createDecision,
+  reviewDecision
 };

@@ -34,3 +34,19 @@ CREATE TABLE IF NOT EXISTS leads (
 
 CREATE INDEX IF NOT EXISTS idx_leads_status_updated ON leads(status, updated_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_email ON leads(email) WHERE email IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS agent_decisions (
+    id SERIAL PRIMARY KEY,
+    agent VARCHAR(50) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT NOT NULL,
+    action_type VARCHAR(50) NOT NULL DEFAULT 'proposal',
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'completed')),
+    feedback TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    reviewed_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_decisions_status_created ON agent_decisions(status, created_at DESC);
