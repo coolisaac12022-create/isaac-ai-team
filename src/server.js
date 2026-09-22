@@ -235,6 +235,13 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
+    if (errorMessage.includes('503') || errorMessage.toLowerCase().includes('service unavailable')) {
+      return res.status(503).json({
+        error: 'Le modèle Gemini est temporairement saturé. Réessayez dans quelques secondes.',
+        retryAfter: 5
+      });
+    }
+
     if (errorMessage.includes('n\'a pas répondu dans les')) {
       return res.status(504).json({
         error: 'Le service IA met trop de temps à répondre. Réessayez dans quelques instants.',
