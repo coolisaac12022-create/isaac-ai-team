@@ -245,7 +245,8 @@
           await loadAgents();
           await loadHistory(agentSelect.value);
         } catch (error) {
-          messages.innerHTML = '<div class="message assistant">Accès refusé.</div>';
+          messages.innerHTML = `<div class="message assistant">${cleanAssistantText(error.message || 'Accès refusé.')}</div>`;
+          appPassword.focus();
         }
       })();
     </script>
