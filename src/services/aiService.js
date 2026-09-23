@@ -5,11 +5,11 @@ const apiKeys = (process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || pr
   .split(',')
   .map((key) => key.trim())
   .filter(Boolean);
-const configuredModels = process.env.GEMINI_MODELS || [process.env.GEMINI_MODEL || 'gemini-3.6-flash', 'gemini-2.0-flash'].join(',');
-const modelNames = configuredModels
+const configuredModels = (process.env.GEMINI_MODELS || process.env.GEMINI_MODEL || 'gemini-3.6-flash')
   .split(',')
   .map((model) => model.trim())
   .filter(Boolean);
+const modelNames = [...new Set([...configuredModels, 'gemini-2.0-flash'])];
 const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS || 20000);
 const AI_RETRY_DELAYS_MS = [1200, 3000];
 
