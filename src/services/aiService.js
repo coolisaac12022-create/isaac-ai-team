@@ -5,7 +5,8 @@ const apiKeys = (process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || pr
   .split(',')
   .map((key) => key.trim())
   .filter(Boolean);
-const modelNames = (process.env.GEMINI_MODELS || process.env.GEMINI_MODEL || 'gemini-3.6-flash')
+const configuredModels = process.env.GEMINI_MODELS || [process.env.GEMINI_MODEL || 'gemini-3.6-flash', 'gemini-2.0-flash'].join(',');
+const modelNames = configuredModels
   .split(',')
   .map((model) => model.trim())
   .filter(Boolean);
@@ -42,9 +43,14 @@ async function generateAssistantReply(prompt, context = '') {
         } catch (error) {
           lastError = error;
           const errorText = error instanceof Error ? error.message : String(error);
-          const isTemporary = errorText.includes('429') || errorText.includes('503') || errorText.toLowerCase().includes('quota') || errorText.toLowerCase().includes('service unavailable');
-          if (!isTemporary) {
+          const normalizedError = errorText.toLowerCase();
+          const isTemporary = errorText.includes('429') || errorText.includes('503') || normalizedError.includes('quota') || normalizedError.includes('service unavailable');
+          const isUnavailableModel = errorText.includes('404') && normalizedError.includes('model');
+          if (!isTemporary && !isUnavailableModel) {
             throw error;
+          }
+          if (isUnavailableModel) {
+            break;
           }
           if (attempt < AI_RETRY_DELAYS_MS.length) {
             await new Promise((resolve) => setTimeout(resolve, AI_RETRY_DELAYS_MS[attempt]));
