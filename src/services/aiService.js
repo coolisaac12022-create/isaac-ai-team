@@ -9,7 +9,8 @@ const configuredModels = (process.env.GEMINI_MODELS || process.env.GEMINI_MODEL 
   .split(',')
   .map((model) => model.trim())
   .filter(Boolean);
-const modelNames = [...new Set([...configuredModels, 'gemini-2.0-flash'])];
+const modelNames = [...new Set([...configuredModels, 'gemini-3.6-flash'])]
+  .filter((model) => model !== 'gemini-2.0-flash');
 const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS || 20000);
 const AI_RETRY_DELAYS_MS = [1200, 3000];
 
